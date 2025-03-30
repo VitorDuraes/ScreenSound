@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using ScreenSound.API.Requests;
+using ScreenSound.API.Response;
 using ScreenSound.Banco;
 using ScreenSound.Modelos;
 
@@ -23,8 +25,9 @@ namespace ScreenSound.API.EndPoints
                 return Results.Ok(musica);
             });
 
-            app.MapPost("/Musicas", ([FromServices] DAL<Musica> dal, [FromBody] Musica musica) =>
+            app.MapPost("/Musicas", ([FromServices] DAL<Musica> dal, [FromBody] MusicaRequest musicaRequest) =>
             {
+                var musica = new Musica(musicaRequest.nome, musicaRequest.ArtistaId, musicaRequest.anoLancamento);
                 dal.Adicionar(musica);
                 return Results.Ok();
             });
@@ -40,24 +43,27 @@ namespace ScreenSound.API.EndPoints
                 return Results.NoContent();
             });
 
-            app.MapPut("/Musicas", ([FromServices] DAL<Musica> dal, [FromBody] Musica musica) =>
-            {
-                var musicaExistente = dal.RecuperarPor(a => a.Id == musica.Id);
-                if (musicaExistente == null)
+            app.MapPut("/Musicas", ([FromServices] DAL<Musica> dal, [FromBody] MusicaRequestEdit musicaRequestEdit) => {
+                var musicaAAtualizar = dal.RecuperarPor(a => a.Id == musicaRequestEdit.Id);
+                if (musicaAAtualizar is null)
                 {
                     return Results.NotFound();
                 }
-                if (string.IsNullOrWhiteSpace(musica.Nome))
-                {
-                    return Results.BadRequest("O nome do artista não pode ser nulo ou vazio.");
-                }
+                musicaAAtualizar.Nome = musicaRequestEdit.nome;
+                musicaAAtualizar.AnoLancamento = musicaRequestEdit.anoLancamento;
 
-                musicaExistente.Nome = musica.Nome;
-                musicaExistente.AnoLancamento = musica.AnoLancamento;
-
-                dal.Atualizar(musicaExistente);
+                dal.Atualizar(musicaAAtualizar);
                 return Results.Ok();
             });
+        }
+        private static ICollection<MusicaResponse> EntityListToResponseList(IEnumerable<Musica> musicaList)
+        {
+            return musicaList.Select(a => EntityToResponse(a)).ToList();
+        }
+
+        private static MusicaResponse EntityToResponse(Musica musica)
+        {
+            return new MusicaResponse(musica.Id, musica.Nome!, musica.Artista!.Id, musica.Artista.Nome);
         }
     }
 }
